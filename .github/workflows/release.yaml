@@ -1,0 +1,72 @@
+name: jvertswag-rs release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: ${{ matrix.job.target }}-${{ matrix.job.os }}
+    runs-on: ${{ matrix.job.os }}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        job:
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          - { target: x86_64-apple-darwin, os: macos-latest }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.job.target }}
+
+      - name: Add Target
+        run: rustup target add ${{ matrix.job.target }}
+
+      - name: Build
+        run: cargo build --locked --release --target ${{ matrix.job.target }}
+
+      - name: Set path
+        id: path
+        shell: bash
+        run: |
+          EXE_suffix=""
+          if [[ "${{ matrix.job.os }}" == "windows-latest" ]]; then
+            EXE_suffix=".exe"
+          fi
+          BIN_PATH="target/${{ matrix.job.target }}/release/jvertswag-rs$EXE_suffix"
+          echo "BIN_PATH=$BIN_PATH" >> $GITHUB_OUTPUT
+
+      - name: Artifact
+        id: artifact
+        shell: bash
+        run: |
+          PKG_suffix=".tar.gz"
+          if [[ "${{ matrix.job.os }}" == "windows-latest" ]]; then
+            PKG_suffix=".zip"
+          fi
+          FILE_NAME="jvertswag-rs-${{ github.ref_name }}-${{ matrix.job.target }}$PKG_suffix"
+          mkdir -p artifact
+          mkdir -p output
+          cp "${{ steps.path.outputs.BIN_PATH }}" "README.md" "LICENSE" "artifact"
+          if [[ "${{ matrix.job.os }}" == "windows-latest" ]]; then
+            7z a -tzip "output/$FILE_NAME" "artifact/*"
+          else
+            tar -czf "output/$FILE_NAME" -C "artifact" .
+          fi
+          echo "artifact-id=output/$FILE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.artifact.outputs.artifact-id }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
