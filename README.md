@@ -4,7 +4,7 @@ cli tool for converting json to openapi jsdoc
 ## Usage
 |args|short|optional|multi|description|default value|
 |-|-|-|-|-|-|
-|--root|-R|false|false|url prefix e.g `https://localhost:80`|none|
+|--root|-R|false|false|url prefix e.g `http://localhost:80`|none|
 |--path|-P|false|false|url path e.g `/api/student/{studentId}`|none|
 |--method|-X|false|false|method e.g `post`|none|
 |--header|-H|false|true|url headers e.g `content-type: application/json`|none|
