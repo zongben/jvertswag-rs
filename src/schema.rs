@@ -79,6 +79,17 @@ impl Schema {
     }
 
     async fn fetch_response(&self) -> Result<String> {
+        async fn handle_req<F>(req_fn: F) -> Result<String, anyhow::Error>
+        where
+            F: Future<Output = Result<String, reqwest::Error>>,
+        {
+            match req_fn.await {
+                Ok(res) => Ok(res),
+                Err(e) => {
+                    return Err(anyhow!("Error: {}", e));
+                }
+            }
+        }
         let url = self.get_url();
         let headers = self.get_headers()?;
         match self.method.as_str() {
@@ -90,18 +101,6 @@ impl Schema {
             _ => {
                 return Err(anyhow!("Invalid method: {}", self.method));
             }
-        }
-    }
-}
-
-async fn handle_req<F>(req_fn: F) -> Result<String>
-where
-    F: Future<Output = Result<String, reqwest::Error>>,
-{
-    match req_fn.await {
-        Ok(res) => Ok(res),
-        Err(e) => {
-            return Err(anyhow!("Error: {}", e));
         }
     }
 }
