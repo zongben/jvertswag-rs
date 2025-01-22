@@ -121,6 +121,12 @@ impl Converter {
     }
 
     fn object_convert(&mut self, json_str: &str) -> Result<()> {
+        fn is_array(json_value: &Value) -> bool {
+            match json_value {
+                Value::Array(_) => true,
+                _ => false,
+            }
+        }
         let json_value: Value = serde_json::from_str(json_str)?;
         let item: Option<&Value> = if is_array(&json_value) {
             Some(&json_value[0])
@@ -148,6 +154,11 @@ impl Converter {
     }
 
     fn add_property(&mut self, key: &str, value: &Value) {
+        fn is_date(s: &str) -> bool {
+            Regex::new(r"^\d{4}[-/]\d{2}[-/]\d{2}(?:[ T]\d{2}:\d{2}:\d{2}(?:Z)?)?$")
+                .unwrap()
+                .is_match(&s.replace("\"", ""))
+        }
         self.write_line(&format!("{}:", key));
         self.add_offset(1);
         match value {
@@ -206,17 +217,4 @@ impl Converter {
         self.write_line("type: string");
         self.add_offset(-2);
     }
-}
-
-fn is_array(json_value: &Value) -> bool {
-    match json_value {
-        Value::Array(_) => true,
-        _ => false,
-    }
-}
-
-fn is_date(s: &str) -> bool {
-    Regex::new(r"^\d{4}[-/]\d{2}[-/]\d{2}(?:[ T]\d{2}:\d{2}:\d{2}(?:Z)?)?$")
-        .unwrap()
-        .is_match(&s.replace("\"", ""))
 }
