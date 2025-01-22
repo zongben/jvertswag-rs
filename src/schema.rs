@@ -77,6 +77,21 @@ impl Schema {
             p.iter().map(|s| s.split_once('=').unwrap().0).collect()
         })
     }
+
+    async fn fetch_response(&self) -> Result<String> {
+        let url = self.get_url();
+        let headers = self.get_headers()?;
+        match self.method.as_str() {
+            "GET" => handle_req(http::get(&url, headers)).await,
+            "POST" => handle_req(http::post(&url, headers, self.body.as_deref())).await,
+            "PUT" => handle_req(http::put(&url, headers, self.body.as_deref())).await,
+            "DELETE" => handle_req(http::delete(&url, headers)).await,
+            "PATCH" => handle_req(http::patch(&url, headers, self.body.as_deref())).await,
+            _ => {
+                return Err(anyhow!("Invalid method: {}", self.method));
+            }
+        }
+    }
 }
 
 async fn handle_req<F>(req_fn: F) -> Result<String>
@@ -87,21 +102,6 @@ where
         Ok(res) => Ok(res),
         Err(e) => {
             return Err(anyhow!("Error: {}", e));
-        }
-    }
-}
-
-async fn fetch_response(schema: &Schema) -> Result<String> {
-    let url = schema.get_url();
-    let headers = schema.get_headers()?;
-    match schema.method.as_str() {
-        "GET" => handle_req(http::get(&url, headers)).await,
-        "POST" => handle_req(http::post(&url, headers, schema.body.as_deref())).await,
-        "PUT" => handle_req(http::put(&url, headers, schema.body.as_deref())).await,
-        "DELETE" => handle_req(http::delete(&url, headers)).await,
-        "PATCH" => handle_req(http::patch(&url, headers, schema.body.as_deref())).await,
-        _ => {
-            return Err(anyhow!("Invalid method: {}", schema.method));
         }
     }
 }
@@ -127,7 +127,7 @@ pub fn create_schema(params: SchemaParams) -> Result<Schema> {
             .enable_io()
             .build()
             .unwrap()
-            .block_on(fetch_response(&schema))?;
+            .block_on(schema.fetch_response())?;
     }
 
     Ok(schema)
