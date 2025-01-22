@@ -58,8 +58,8 @@ impl Converter {
         }
         self.add_offset(-1);
 
-        if let Some(body) = schema.body {
-            self.req_convert(body)?;
+        if let Some(body) = &schema.body {
+            self.req_convert(&body)?;
         }
 
         self.res_convert(&schema.res)?;

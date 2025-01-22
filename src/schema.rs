@@ -1,25 +1,34 @@
 use anyhow::{anyhow, Result};
-use std::borrow::Cow;
 use std::future::Future;
 use tokio::runtime::Builder;
 
-use crate::cli;
 use crate::http;
 use reqwest::header::{HeaderMap, HeaderName};
 
 #[derive(Debug)]
-pub struct Schema<'a> {
-    pub root: &'a str,
-    pub path: &'a str,
-    pub method: &'a str,
-    pub body: Option<&'a str>,
-    pub header: Vec<&'a str>,
-    pub query: Option<Vec<&'a str>>,
-    pub param: Option<Vec<&'a str>>,
-    pub res: Cow<'a, String>,
+pub struct Schema {
+    pub root: String,
+    pub path: String,
+    pub method: String,
+    pub body: Option<String>,
+    pub header: Vec<String>,
+    pub query: Option<Vec<String>>,
+    pub param: Option<Vec<String>>,
+    pub res: String,
 }
 
-impl Schema<'_> {
+pub struct SchemaParams {
+    pub root: String,
+    pub path: String,
+    pub method: String,
+    pub body: Option<String>,
+    pub header: Vec<String>,
+    pub query: Option<Vec<String>>,
+    pub param: Option<Vec<String>>,
+    pub res: Option<String>,
+}
+
+impl Schema {
     fn get_url(&self) -> String {
         let query = self
             .query
@@ -82,10 +91,10 @@ where
     }
 }
 
-async fn fetch_response(schema: &Schema<'_>) -> Result<String> {
+async fn fetch_response(schema: &Schema) -> Result<String> {
     let url = schema.get_url();
     let headers = schema.get_headers()?;
-    match schema.method {
+    match schema.method.as_str() {
         "GET" => handle_req(http::get(&url, headers)).await,
         "POST" => handle_req(http::post(&url, headers, schema.body.as_deref())).await,
         "PUT" => handle_req(http::put(&url, headers, schema.body.as_deref())).await,
@@ -97,36 +106,28 @@ async fn fetch_response(schema: &Schema<'_>) -> Result<String> {
     }
 }
 
-pub fn from_args(args: &cli::Args) -> Result<Schema> {
+pub fn create_schema(params: SchemaParams) -> Result<Schema> {
     let mut schema = Schema {
-        root: &args.root,
-        path: &args.path,
-        method: &args.method,
-        body: args.body.as_deref(),
-        header: args.header.iter().map(|s| s.as_str()).collect(),
-        query: args
-            .query
-            .as_ref()
-            .map(|q| q.iter().map(|s| s.as_str()).collect()),
-        param: args
-            .param
-            .as_ref()
-            .map(|p| p.iter().map(|s| s.as_str()).collect()),
-        res: match &args.res {
-            Some(res) => Cow::Borrowed(res),
-            None => Cow::Owned(String::new()),
+        root: params.root,
+        path: params.path,
+        method: params.method,
+        body: params.body,
+        header: params.header,
+        query: params.query,
+        param: params.param,
+        res: match params.res {
+            Some(res) => res,
+            None => String::new(),
         },
     };
 
     if schema.res.is_empty() {
-        schema.res = Cow::Owned(
-            Builder::new_current_thread()
-                .enable_time()
-                .enable_io()
-                .build()
-                .unwrap()
-                .block_on(fetch_response(&schema))?,
-        );
+        schema.res = Builder::new_current_thread()
+            .enable_time()
+            .enable_io()
+            .build()
+            .unwrap()
+            .block_on(fetch_response(&schema))?;
     }
 
     Ok(schema)

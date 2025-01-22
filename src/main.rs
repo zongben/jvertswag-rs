@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use cli::Args;
 use converter::Converter;
+use schema::SchemaParams;
 
 mod cli;
 mod converter;
@@ -16,7 +17,16 @@ fn main() {
 
 fn run() -> Result<()> {
     let args = Args::parse();
-    let schema = schema::from_args(&args)?;
+    let schema = schema::create_schema(SchemaParams {
+        root: args.root,
+        path: args.path,
+        method: args.method,
+        body: args.body,
+        header: args.header,
+        query: args.query,
+        param: args.param,
+        res: args.res,
+    })?;
     let mut converter = Converter::new(args.gap, args.offset, &args.comment);
     let result = converter.convert_schema(&schema);
     match result {
